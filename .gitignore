@@ -1,0 +1,6 @@
+node_modules/
+.env
+dist/
+/output/
+.analyzer-state.json
+.DS_Store

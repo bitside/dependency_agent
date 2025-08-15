@@ -1,0 +1,37 @@
+{
+  "pwd": "/root",
+  "outDir": "./output",
+  "pathMappings": [
+    {
+      "from": "/root",
+      "to": "."
+    },
+    {
+      "from": "/opt/application",
+      "to": "./app"
+    },
+    {
+      "from": "/var/data",
+      "to": "./example/data"
+    },
+    {
+      "from": "/home/user",
+      "to": "./user"
+    },
+    {
+      "from": "/usr/local/bin",
+      "to": "./bin"
+    },
+    {
+      "from": "/etc/config",
+      "to": "./example/config"
+    }
+  ],
+  "entryPoints": [
+    {
+      "pwd": "/root",
+      "path": "/root/example/crontab",
+      "args": []
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "name": "dependency_agent",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "dev:example": "tsx src/cli.ts analyze -c config.json",
+    "start": "node dist/cli.js",
+    "analyze": "tsx src/cli.ts analyze",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "repo-analyzer": "./dist/cli.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "24.3.0",
+    "tsx": "4.20.4",
+    "typescript": "5.9.2"
+  },
+  "dependencies": {
+    "@ai-sdk/amazon-bedrock": "3.0.8",
+    "ai": "5.0.14",
+    "chalk": "5.5.0",
+    "commander": "14.0.0",
+    "dotenv": "17.2.1",
+    "file-type": "21.0.0",
+    "isbinaryfile": "5.0.4",
+    "zod": "4.0.17"
+  }
+}

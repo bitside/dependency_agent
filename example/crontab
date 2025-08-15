@@ -1,0 +1,10 @@
+# Example crontab file for testing
+# This would normally contain entries like:
+# 0 * * * * /opt/application/daily_process.pl -c /var/data/config.ini
+# */5 * * * * /opt/application/monitor.sh
+# 30 2 * * * /home/user/backup.py --config /etc/config/backup.json
+
+# For testing, create simple example scripts
+0 * * * * ./example/scripts/process.sh
+*/15 * * * * ./example/scripts/monitor.pl -c ./example/config/settings.ini
+*/15 * * * * ./example/scripts/test.zip
