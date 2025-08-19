@@ -112,7 +112,11 @@ export class FileAnalysisAgent {
 
     const pathMapper = new PathMapper(this.pathMapping);
     const absolutePath = path.resolve(pwd, filePath);
-    const mappedPath = path.resolve(pathMapper.map(absolutePath));
+    const mappedResult = pathMapper.map(absolutePath);
+    // Only resolve if the mapped path is relative
+    const mappedPath = path.isAbsolute(mappedResult) 
+      ? mappedResult 
+      : path.resolve(mappedResult);
 
     console.log(`🔎 Analyzing file ${filePath}...`);
     console.log(chalk.dim(`\tWorking directory: ${pwd}`));

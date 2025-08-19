@@ -8,7 +8,9 @@
     "dev:example": "tsx src/cli.ts analyze -c config.json",
     "start": "node dist/cli.js",
     "analyze": "tsx src/cli.ts analyze",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "bin": {
     "repo-analyzer": "./dist/cli.js"
@@ -18,7 +20,10 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@types/jest": "30.0.0",
     "@types/node": "24.3.0",
+    "jest": "30.0.5",
+    "ts-jest": "29.4.1",
     "tsx": "4.20.4",
     "typescript": "5.9.2"
   },
