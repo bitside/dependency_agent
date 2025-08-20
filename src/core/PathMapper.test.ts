@@ -4,10 +4,10 @@ import path from "path";
 
 describe("PathUtils", () => {
   describe("toUnixPath", () => {
-    test("converts Windows paths to Unix style", () => {
-      expect(toUnixPath("C:\\autoimg\\paisy\\skript")).toBe("/autoimg/paisy/skript");
-      expect(toUnixPath("C:/autoimg/paisy/skript")).toBe("/autoimg/paisy/skript");
-      expect(toUnixPath("D:\\Data\\file.txt")).toBe("/Data/file.txt");
+    test("converts Windows paths to Unix style preserving drive letters", () => {
+      expect(toUnixPath("C:\\autoimg\\paisy\\skript")).toBe("/c/autoimg/paisy/skript");
+      expect(toUnixPath("C:/autoimg/paisy/skript")).toBe("/c/autoimg/paisy/skript");
+      expect(toUnixPath("D:\\Data\\file.txt")).toBe("/d/Data/file.txt");
     });
 
     test("preserves Unix paths", () => {
@@ -23,7 +23,7 @@ describe("PathUtils", () => {
     test("handles edge cases", () => {
       expect(toUnixPath("")).toBe("/");
       expect(toUnixPath("/")).toBe("/");
-      expect(toUnixPath("C:")).toBe("/");
+      expect(toUnixPath("C:")).toBe("/c");
     });
   });
 
@@ -45,34 +45,39 @@ describe("PathUtils", () => {
 });
 
 describe("PathMapper with Unix-style normalization", () => {
-  describe("Unix-style config mappings", () => {
+  describe("Unix-style config mappings with drive preservation", () => {
     const mappings = [
-      { from: "/autoimg", to: "C:/Users/JOHANNES/AutoImaging/b0d039v2/autoimg" },
-      { from: "/home/autoimg", to: "C:/Users/JOHANNES/AutoImaging/b0d039v2/home/autoimg" },
+      { from: "/c/autoimg", to: "C:/Users/JOHANNES/AutoImaging/b0d039v2/autoimg" },
+      { from: "/d/data", to: "D:/SharedData" },
       { from: "/opt/app", to: "./local/app" }
     ];
     
     const mapper = new PathMapper(mappings);
 
-    test("maps Windows absolute paths that resolve to Unix paths", () => {
+    test("maps Windows absolute paths preserving drive letters", () => {
       // When path.resolve on Windows creates C:\autoimg\paisy\skript
-      // It should be normalized to /autoimg/paisy/skript and mapped correctly
+      // It should be normalized to /c/autoimg/paisy/skript and mapped correctly
       const windowsInput = "C:\\autoimg\\paisy\\skript\\docgener";
       const result = mapper.map(windowsInput);
       expect(result).toBe("C:\\Users\\JOHANNES\\AutoImaging\\b0d039v2\\autoimg\\paisy\\skript\\docgener");
     });
 
-    test("maps Unix paths on Unix systems", () => {
-      const unixInput = "/autoimg/paisy/skript/docgener";
+    test("maps Unix paths with drive letters", () => {
+      const unixInput = "/c/autoimg/paisy/skript/docgener";
       const result = mapper.map(unixInput);
       // Should map to the Windows path specified in config
       expect(result).toBe("C:\\Users\\JOHANNES\\AutoImaging\\b0d039v2\\autoimg\\paisy\\skript\\docgener");
     });
 
-    test("handles nested path mappings", () => {
-      const input1 = "/home/autoimg/config.json";
-      const result1 = mapper.map(input1);
-      expect(result1).toBe("C:\\Users\\JOHANNES\\AutoImaging\\b0d039v2\\home\\autoimg\\config.json");
+    test("handles different drives correctly", () => {
+      const dDriveInput = "D:\\data\\myfile.txt";
+      const result = mapper.map(dDriveInput);
+      expect(result).toBe("D:\\SharedData\\myfile.txt");
+    });
+
+    test("returns unmapped Unix paths as-is", () => {
+      const unmapped = "/home/user/documents";
+      expect(mapper.map(unmapped)).toBe(unmapped);
     });
 
     test("returns unmapped paths as-is", () => {
@@ -132,11 +137,11 @@ describe("PathMapper with Unix-style normalization", () => {
   describe("Real-world scenario from user's config", () => {
     const mappings = [
       {
-        from: "/autoimg",
+        from: "/c/autoimg",
         to: "C:/Users/JOHANNES.STRICKER/AutoImaging/b0d039v2/autoimg"
       },
       {
-        from: "/home/autoimg",
+        from: "/c/home/autoimg",
         to: "C:/Users/JOHANNES.STRICKER/AutoImaging/b0d039v2/home/autoimg"
       }
     ];

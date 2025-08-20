@@ -17,18 +17,24 @@ export function toUnixPath(inputPath: string): string {
   // Convert backslashes to forward slashes
   let normalized = inputPath.replace(/\\/g, "/");
 
-  // Remove Windows drive letter if present (e.g., C:, D:)
+  // Convert Windows drive letter to Unix format (e.g., C: → /c)
   if (/^[A-Za-z]:/.test(normalized)) {
-    normalized = normalized.substring(2);
+    const drive = normalized[0].toLowerCase();
+    const rest = normalized.substring(2);
+    normalized = "/" + drive + rest;
   }
   
   // Handle relative paths starting with ./
-  if (normalized.startsWith("./")) {
+  else if (normalized.startsWith("./")) {
     normalized = normalized.substring(1);
+    // Ensure the path starts with /
+    if (!normalized.startsWith("/")) {
+      normalized = "/" + normalized;
+    }
   }
-
-  // Ensure the path starts with /
-  if (!normalized.startsWith("/")) {
+  
+  // Ensure other paths start with /
+  else if (!normalized.startsWith("/")) {
     normalized = "/" + normalized;
   }
 
@@ -49,7 +55,7 @@ export function toUnixPath(inputPath: string): string {
  * - On Unix systems: returns as-is
  * - On Windows: converts to Windows format with backslashes
  * 
- * @param unixPath - Unix-style path (e.g., /path/to/file)
+ * @param unixPath - Unix-style path (e.g., /path/to/file or /c/path/to/file)
  * @returns Platform-specific path
  */
 export function fromUnixPath(unixPath: string): string {
@@ -68,13 +74,19 @@ export function fromUnixPath(unixPath: string): string {
     return unixPath;
   }
 
+  // Check if this is a Unix-style path with a drive letter (/c/Users/...)
+  if (/^\/[a-z]\//.test(unixPath)) {
+    const drive = unixPath[1].toUpperCase();
+    const rest = unixPath.substring(2);
+    return drive + ":" + rest.replace(/\//g, "\\");
+  }
+
   // Convert Unix path to Windows format
   // Replace forward slashes with backslashes
   let windowsPath = unixPath.replace(/\//g, path.sep);
 
-  // If it's an absolute Unix path, we need to decide how to handle it
-  // For now, we'll keep it as a relative path from the current drive
-  // This is because we don't know which drive letter to use
+  // If it's an absolute Unix path without a drive, keep as relative
+  // (we don't know which drive to use)
   if (windowsPath.startsWith("\\")) {
     // Remove leading backslash to make it relative
     windowsPath = "." + windowsPath;

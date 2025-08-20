@@ -1,7 +1,7 @@
 import fsSync from "fs";
 import path from "path";
 import { Config, PathMapping } from "./types";
-import { toUnixPath, fromUnixPath, isWindowsPath } from "./pathUtils";
+import { toUnixPath, isWindowsPath } from "./pathUtils";
 
 export class PathMapper {
   constructor(private mappings: PathMapping[]) {}
@@ -25,19 +25,6 @@ export class PathMapper {
     return new PathMapper(config.pathMappings);
   }
 
-  private makeRelative(input: string): string {
-    // Check if the path is absolute on any platform
-    if (path.isAbsolute(input)) {
-      // Don't make absolute paths relative
-      return input;
-    }
-    
-    // For relative paths, ensure they start with ./
-    if (!input.startsWith("./") && !input.startsWith("../")) {
-      return `./${input}`;
-    }
-    return input;
-  }
 
   /**
    * Normalize path separators to forward slashes for comparison
@@ -62,11 +49,6 @@ export class PathMapper {
         const relativePart = unixInput.slice(unixFrom.length);
         
         // The 'to' path might be Windows or Unix style
-        // Normalize it to Unix for manipulation
-        const unixTo = toUnixPath(mapping.to);
-        
-        // Combine with the relative part
-        const mappedUnixPath = unixTo + relativePart;
         
         // Convert to platform-specific format for file system operations
         // If the original 'to' was a Windows path, keep it in Windows format
