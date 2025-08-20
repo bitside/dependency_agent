@@ -1,1 +1,1 @@
-export * from "./FileAnalysisAgent";
+export * from "./fileAnalysisAgent";

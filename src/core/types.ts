@@ -7,6 +7,7 @@ export interface Config {
   pathMappings: PathMapping[];
   pwd: string;
   outDir?: string;
+  copyOutputDir?: string;
   entryPoints?: {
     pwd: string;
     path: string;

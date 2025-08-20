@@ -8,6 +8,7 @@
     "dev:example": "tsx src/cli.ts analyze -c config.json",
     "start": "node dist/cli.js",
     "analyze": "tsx src/cli.ts analyze",
+    "copy": "tsx src/cli.ts copy",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"

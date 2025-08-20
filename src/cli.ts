@@ -11,6 +11,7 @@ import { PathMapper, Config, resolveUnixPath } from "./core";
 import { isBinaryFile } from "isbinaryfile";
 import { writeOutputFile } from "./output/visualizeDependencies";
 import { type FileDependency } from "./output/visualizeDependencies";
+import { FileCopyService } from "./services/copyFiles";
 
 function uniqueBy<T>(array: T[], key: keyof T): T[] {
   const seen = new Set();
@@ -152,6 +153,8 @@ program
           continue;
         }
 
+        processedFiles.add(absolutePath);
+
         // Filter binary files and skip their analysis.
         const isBinaryFile = !!nextFile.fileType;
         if (isBinaryFile) {
@@ -162,7 +165,6 @@ program
           continue;
         }
 
-        processedFiles.add(absolutePath);
         const analysisResult = await agent.analyzeFile({
           pwd: nextFile.pwd,
           filePath: nextFile.path,
@@ -224,6 +226,93 @@ program
       console.log(chalk.green("\n✅ Analysis complete!"));
       console.log("");
       console.log(chalk.blue(content));
+    } catch (error) {
+      console.error(chalk.red("\n❌ Error:"), error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("copy")
+  .description(
+    "Copy files from a markdown analysis file or text list to an output directory using path mappings"
+  )
+  .requiredOption(
+    "-i, --input <path>",
+    "Path to markdown analysis file or text file with file paths (one per line)"
+  )
+  .option("-c, --config <path>", "Configuration file path", "./config.json")
+  .requiredOption("-o, --output <path>", "Output directory for copied files")
+  .option("--dry-run", "Preview what would be copied without copying", false)
+  .option("-v, --verbose", "Show detailed output", false)
+  .option("--no-read", "Exclude read files (only applies to markdown input)")
+  .option("--no-write", "Exclude write files (only applies to markdown input)")
+  .option(
+    "--no-exec",
+    "Exclude executable files (only applies to markdown input)"
+  )
+  .option(
+    "--no-binary",
+    "Exclude binary files (only applies to markdown input)"
+  )
+  .option(
+    "--include-errors",
+    "Include error files (only applies to markdown input)",
+    false
+  )
+  .action(async (options) => {
+    try {
+      console.log(chalk.bold.cyan("\n📁 Repository File Copy Tool\n"));
+
+      // Load configuration
+      if (!existsSync(options.config)) {
+        console.error(
+          chalk.red(`Configuration file not found: ${options.config}`)
+        );
+        process.exit(1);
+      }
+
+      const config: Config = JSON.parse(
+        await readFile(options.config, "utf-8")
+      );
+      console.log(
+        chalk.green(`✅ Configuration loaded from: ${options.config}`)
+      );
+
+      // Check if input file exists
+      if (!existsSync(options.input)) {
+        console.error(chalk.red(`Input file not found: ${options.input}`));
+        process.exit(1);
+      }
+
+      const extractOptions = {
+        includeReadFiles: options.read !== false,
+        includeWriteFiles: options.write !== false,
+        includeExecutables: options.exec !== false,
+        includeBinaries: options.binary !== false,
+        excludeErrors: !options.includeErrors,
+      };
+
+      // Create copy service and execute
+      const copyService = new FileCopyService(config);
+      const stats = await copyService.copyFiles(options.input, options.output, {
+        dryRun: options.dryRun,
+        verbose: options.verbose,
+        ...extractOptions,
+      });
+
+      copyService.printStats(stats, { dryRun: options.dryRun });
+
+      if (stats.errors > 0) {
+        console.log(
+          chalk.yellow(
+            "⚠️  Some files could not be copied. Check the errors above."
+          )
+        );
+        process.exit(1);
+      }
+
+      console.log(chalk.green("✅ Copy operation completed successfully!"));
     } catch (error) {
       console.error(chalk.red("\n❌ Error:"), error);
       process.exit(1);
