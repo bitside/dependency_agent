@@ -114,8 +114,8 @@ export class FileAnalysisAgent {
     const absolutePath = resolveUnixPath(pwd, filePath);
     const mappedResult = pathMapper.map(absolutePath);
     // Only resolve if the mapped path is relative
-    const mappedPath = path.isAbsolute(mappedResult) 
-      ? mappedResult 
+    const mappedPath = path.isAbsolute(mappedResult)
+      ? mappedResult
       : path.resolve(mappedResult);
 
     console.log(`🔎 Analyzing file ${filePath}...`);
@@ -155,7 +155,7 @@ export class FileAnalysisAgent {
         cliArgs,
       }),
       tools: {
-        readFile: createReadFileTool(),
+        readFile: createReadFileTool(this.pathMapping),
       },
       stopWhen: stepCountIs(10),
     });

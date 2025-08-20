@@ -4,3 +4,4 @@ dist/
 /output/
 .analyzer-state.json
 .DS_Store
+config/

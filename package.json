@@ -15,6 +15,7 @@
   "bin": {
     "repo-analyzer": "./dist/cli.js"
   },
+  "type": "module",
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -34,7 +35,7 @@
     "commander": "14.0.0",
     "dotenv": "17.2.1",
     "file-type": "21.0.0",
-    "isbinaryfile": "5.0.4",
+    "isbinaryfile": "^5.0.4",
     "zod": "4.0.17"
   }
 }

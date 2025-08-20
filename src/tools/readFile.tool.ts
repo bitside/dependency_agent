@@ -1,10 +1,10 @@
 import { tool } from "ai";
 import { z } from "zod";
 import fs from "fs/promises";
-import { PathMapper, resolveUnixPath } from "../core";
+import { PathMapper, PathMapping, resolveUnixPath } from "../core";
 
-export const createReadFileTool = () => {
-  const pathMapper = PathMapper.fromConfig();
+export const createReadFileTool = (pathMappings: PathMapping[]) => {
+  const pathMapper = new PathMapper(pathMappings);
   return tool({
     description: "Read contents of a local file",
     inputSchema: z.object({
@@ -17,7 +17,9 @@ export const createReadFileTool = () => {
         const mappedPath = pathMapper.map(resolveUnixPath(pwd ?? "", filepath));
         // Resolve the path (you might want to restrict to specific directories)
 
-        console.log(`📂 Reading file '${filepath}' from '${mappedPath}'.`);
+        console.log(
+          `📂 Reading file '${filepath}' from '${mappedPath}' with pwd '${pwd}'.`
+        );
 
         // Read the file
         const content = await fs.readFile(mappedPath, encoding);

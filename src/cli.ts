@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 
 import "dotenv/config";
-import path from "path";
 import { Command } from "commander";
-import { readFileSync, existsSync } from "fs";
+import { readFile } from "fs/promises";
+import { existsSync } from "fs";
 import chalk from "chalk";
 import { FileAnalysisAgent, FileAnalysisOutput } from "./agents";
 import { fileTypeFromBuffer } from "file-type";
 import { PathMapper, Config, resolveUnixPath } from "./core";
+import { isBinaryFile } from "isbinaryfile";
 import { writeOutputFile } from "./output/visualizeDependencies";
 import { type FileDependency } from "./output/visualizeDependencies";
 
@@ -28,10 +29,19 @@ const determineFileType = async (
   file: { path: string; pwd: string }
 ): Promise<string | undefined> => {
   const absolutePath = resolveUnixPath(file.pwd, file.path);
-  const mappedAbsolutePath = fileMapper.map(absolutePath);
-  const buffer = readFileSync(mappedAbsolutePath);
-  const fileType = await fileTypeFromBuffer(buffer);
-  return fileType?.ext;
+  try {
+    const mappedAbsolutePath = fileMapper.map(absolutePath);
+    const buffer = await readFile(mappedAbsolutePath);
+    const fileType = await fileTypeFromBuffer(buffer);
+    if (fileType) {
+      return fileType.ext;
+    }
+    const isBinary = await isBinaryFile(mappedAbsolutePath);
+    return isBinary ? "unknown" : undefined;
+  } catch (e) {
+    console.error(`⛔️ File does not exist: ${absolutePath}`);
+    return undefined;
+  }
 };
 
 const program = new Command();
@@ -59,7 +69,9 @@ program
         process.exit(1);
       }
 
-      const config: Config = JSON.parse(readFileSync(options.config, "utf-8"));
+      const config: Config = JSON.parse(
+        await readFile(options.config, "utf-8")
+      );
       console.log(
         chalk.green(`✅ Configuration loaded from: ${options.config}`)
       );
