@@ -241,6 +241,7 @@ ${JSON.stringify(z.toJSONSchema(AnalysisResultSchema))}
 
 IMPORTANT:
 - When analyzing file paths, DO substitute any variables with the surrounding context
+- DO infer file paths from library imports, e.g. for perl scripts the \`use mailsenden;\` implies that a library file called \`mailsenden.pm\` exists. Be smart about this and infer file paths correctly.
 - DO NOT analyze any of the files you find. DO ONLY collect the file lists
 - DO resolve all variables and environment variables when possible
 - DO identify all of the arguments passed to executed files
