@@ -7,7 +7,7 @@ import { readFileSync, existsSync } from "fs";
 import chalk from "chalk";
 import { FileAnalysisAgent, FileAnalysisOutput } from "./agents";
 import { fileTypeFromBuffer } from "file-type";
-import { PathMapper, Config } from "./core";
+import { PathMapper, Config, resolveUnixPath } from "./core";
 import { writeOutputFile } from "./output/visualizeDependencies";
 import { type FileDependency } from "./output/visualizeDependencies";
 
@@ -27,7 +27,7 @@ const determineFileType = async (
   fileMapper: PathMapper,
   file: { path: string; pwd: string }
 ): Promise<string | undefined> => {
-  const absolutePath = path.resolve(file.pwd, file.path);
+  const absolutePath = resolveUnixPath(file.pwd, file.path);
   const mappedAbsolutePath = fileMapper.map(absolutePath);
   const buffer = readFileSync(mappedAbsolutePath);
   const fileType = await fileTypeFromBuffer(buffer);
@@ -133,7 +133,7 @@ program
           )
         );
         const nextFile = processQueue.splice(0, 1)[0];
-        const absolutePath = path.resolve(nextFile.pwd, nextFile.path);
+        const absolutePath = resolveUnixPath(nextFile.pwd, nextFile.path);
 
         // Skip files that have already been processed.
         if (processedFiles.has(absolutePath)) {

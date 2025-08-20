@@ -1,6 +1,5 @@
 import { PathMapper } from "./PathMapper";
-import { toUnixPath, fromUnixPath, isWindowsPath, isUnixPath } from "./pathUtils";
-import path from "path";
+import { toUnixPath, isWindowsPath, isUnixPath, resolveUnixPath } from "./pathUtils";
 
 describe("PathUtils", () => {
   describe("toUnixPath", () => {
@@ -40,6 +39,35 @@ describe("PathUtils", () => {
       expect(isUnixPath("/opt/app")).toBe(true);
       expect(isUnixPath("C:\\path")).toBe(false);
       expect(isUnixPath("relative/path")).toBe(false);
+    });
+  });
+
+  describe("resolveUnixPath", () => {
+    test("always uses Unix-style path resolution", () => {
+      // Basic resolution
+      expect(resolveUnixPath("/autoimg", "path/to/file")).toBe("/autoimg/path/to/file");
+      expect(resolveUnixPath("/autoimg", "./path/to/file")).toBe("/autoimg/path/to/file");
+      
+      // Parent directory navigation
+      expect(resolveUnixPath("/autoimg/subdir", "../file.txt")).toBe("/autoimg/file.txt");
+      expect(resolveUnixPath("/autoimg", "../home/user")).toBe("/home/user");
+      
+      // Absolute path overrides
+      expect(resolveUnixPath("/autoimg", "/home/user")).toBe("/home/user");
+      
+      // Multiple segments
+      expect(resolveUnixPath("/", "autoimg", "paisy", "skript")).toBe("/autoimg/paisy/skript");
+    });
+
+    test("works consistently across platforms", () => {
+      // These should produce Unix-style paths even on Windows
+      const result1 = resolveUnixPath("/autoimg", "paisy/skript/docgener");
+      expect(result1).toBe("/autoimg/paisy/skript/docgener");
+      expect(result1).not.toContain("\\");
+      expect(result1).not.toMatch(/^[A-Z]:/);
+      
+      const result2 = resolveUnixPath("/c/autoimg", "file.txt");
+      expect(result2).toBe("/c/autoimg/file.txt");
     });
   });
 });

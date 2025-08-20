@@ -1,8 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import fs from "fs/promises";
-import path from "path";
-import { PathMapper } from "../core";
+import { PathMapper, resolveUnixPath } from "../core";
 
 export const createReadFileTool = () => {
   const pathMapper = PathMapper.fromConfig();
@@ -15,7 +14,7 @@ export const createReadFileTool = () => {
     }),
     execute: async ({ pwd, filepath, encoding }) => {
       try {
-        const mappedPath = pathMapper.map(path.resolve(pwd ?? "", filepath));
+        const mappedPath = pathMapper.map(resolveUnixPath(pwd ?? "", filepath));
         // Resolve the path (you might want to restrict to specific directories)
 
         console.log(`📂 Reading file '${filepath}' from '${mappedPath}'.`);

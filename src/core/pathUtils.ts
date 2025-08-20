@@ -120,3 +120,15 @@ export function isWindowsPath(inputPath: string): boolean {
          inputPath.includes("\\") ||
          inputPath.startsWith("\\\\");
 }
+
+/**
+ * Resolves paths using Unix-style path resolution, regardless of the current platform.
+ * Use this for remote Unix paths that should not be converted to Windows paths.
+ * 
+ * @param segments - Path segments to resolve
+ * @returns Resolved Unix-style path
+ */
+export function resolveUnixPath(...segments: string[]): string {
+  // Use path.posix to ensure Unix-style resolution on all platforms
+  return path.posix.resolve(...segments);
+}

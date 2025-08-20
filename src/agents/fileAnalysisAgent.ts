@@ -4,7 +4,7 @@ import { z } from "zod";
 import fs from "fs/promises";
 import path from "path";
 import { createReadFileTool } from "../tools";
-import { PathMapper, PathMapping } from "../core";
+import { PathMapper, PathMapping, resolveUnixPath } from "../core";
 import chalk from "chalk";
 
 // Schema for the final analysis result
@@ -111,7 +111,7 @@ export class FileAnalysisAgent {
     const { pwd, filePath, fileType, cliArgs } = params;
 
     const pathMapper = new PathMapper(this.pathMapping);
-    const absolutePath = path.resolve(pwd, filePath);
+    const absolutePath = resolveUnixPath(pwd, filePath);
     const mappedResult = pathMapper.map(absolutePath);
     // Only resolve if the mapped path is relative
     const mappedPath = path.isAbsolute(mappedResult) 
