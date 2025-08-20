@@ -1,127 +1,167 @@
 import { PathMapper } from "./PathMapper";
+import { toUnixPath, fromUnixPath, isWindowsPath, isUnixPath } from "./pathUtils";
 import path from "path";
 
-describe("PathMapper", () => {
-  describe("Unix-style paths", () => {
-    const mappings = [
-      { from: "/opt/application", to: "./app" },
-      { from: "/var/data", to: "./data" },
-      { from: "/etc/config", to: "./config" }
-    ];
-    
-    const mapper = new PathMapper(mappings);
-
-    test("should map Unix absolute paths correctly", () => {
-      expect(mapper.map("/opt/application/src/index.js")).toBe(
-        "./app/src/index.js"
-      );
-      expect(mapper.map("/var/data/file.txt")).toBe(
-        "./data/file.txt"
-      );
+describe("PathUtils", () => {
+  describe("toUnixPath", () => {
+    test("converts Windows paths to Unix style", () => {
+      expect(toUnixPath("C:\\autoimg\\paisy\\skript")).toBe("/autoimg/paisy/skript");
+      expect(toUnixPath("C:/autoimg/paisy/skript")).toBe("/autoimg/paisy/skript");
+      expect(toUnixPath("D:\\Data\\file.txt")).toBe("/Data/file.txt");
     });
 
-    test("should handle paths without mappings", () => {
-      expect(mapper.map("/usr/local/bin/script.sh")).toBe(
-        "/usr/local/bin/script.sh"
-      );
+    test("preserves Unix paths", () => {
+      expect(toUnixPath("/autoimg/paisy/skript")).toBe("/autoimg/paisy/skript");
+      expect(toUnixPath("/opt/application")).toBe("/opt/application");
     });
 
-    test("should handle relative paths", () => {
-      expect(mapper.map("./local/file.txt")).toBe("./local/file.txt");
-      expect(mapper.map("../parent/file.txt")).toBe("../parent/file.txt");
-      expect(mapper.map("file.txt")).toBe("./file.txt");
+    test("handles relative paths", () => {
+      expect(toUnixPath("./relative/path")).toBe("/relative/path");
+      expect(toUnixPath("relative/path")).toBe("/relative/path");
+    });
+
+    test("handles edge cases", () => {
+      expect(toUnixPath("")).toBe("/");
+      expect(toUnixPath("/")).toBe("/");
+      expect(toUnixPath("C:")).toBe("/");
     });
   });
 
-  describe("Windows-style paths", () => {
+  describe("isWindowsPath and isUnixPath", () => {
+    test("correctly identifies Windows paths", () => {
+      expect(isWindowsPath("C:\\path")).toBe(true);
+      expect(isWindowsPath("D:/path")).toBe(true);
+      expect(isWindowsPath("\\\\server\\share")).toBe(true);
+      expect(isWindowsPath("/unix/path")).toBe(false);
+    });
+
+    test("correctly identifies Unix paths", () => {
+      expect(isUnixPath("/unix/path")).toBe(true);
+      expect(isUnixPath("/opt/app")).toBe(true);
+      expect(isUnixPath("C:\\path")).toBe(false);
+      expect(isUnixPath("relative/path")).toBe(false);
+    });
+  });
+});
+
+describe("PathMapper with Unix-style normalization", () => {
+  describe("Unix-style config mappings", () => {
     const mappings = [
-      { from: "C:\\Production\\App", to: ".\\app" },
-      { from: "D:\\Data", to: ".\\data" },
-      { from: "C:/Production/App", to: "./app" }, // Mixed separators
+      { from: "/autoimg", to: "C:/Users/JOHANNES/AutoImaging/b0d039v2/autoimg" },
+      { from: "/home/autoimg", to: "C:/Users/JOHANNES/AutoImaging/b0d039v2/home/autoimg" },
+      { from: "/opt/app", to: "./local/app" }
     ];
     
     const mapper = new PathMapper(mappings);
 
-    test("should map Windows absolute paths correctly", () => {
-      // Test with backslash separators
-      const result1 = mapper.map("C:\\Production\\App\\src\\index.js");
-      // The mapper returns platform-specific separators
-      expect(result1).toBe("." + path.sep + "app" + path.sep + "src" + path.sep + "index.js");
+    test("maps Windows absolute paths that resolve to Unix paths", () => {
+      // When path.resolve on Windows creates C:\autoimg\paisy\skript
+      // It should be normalized to /autoimg/paisy/skript and mapped correctly
+      const windowsInput = "C:\\autoimg\\paisy\\skript\\docgener";
+      const result = mapper.map(windowsInput);
+      expect(result).toBe("C:\\Users\\JOHANNES\\AutoImaging\\b0d039v2\\autoimg\\paisy\\skript\\docgener");
+    });
+
+    test("maps Unix paths on Unix systems", () => {
+      const unixInput = "/autoimg/paisy/skript/docgener";
+      const result = mapper.map(unixInput);
+      // Should map to the Windows path specified in config
+      expect(result).toBe("C:\\Users\\JOHANNES\\AutoImaging\\b0d039v2\\autoimg\\paisy\\skript\\docgener");
+    });
+
+    test("handles nested path mappings", () => {
+      const input1 = "/home/autoimg/config.json";
+      const result1 = mapper.map(input1);
+      expect(result1).toBe("C:\\Users\\JOHANNES\\AutoImaging\\b0d039v2\\home\\autoimg\\config.json");
+    });
+
+    test("returns unmapped paths as-is", () => {
+      const unmapped = "/usr/local/bin/script";
+      expect(mapper.map(unmapped)).toBe(unmapped);
       
-      const result2 = mapper.map("D:\\Data\\file.txt");
-      expect(result2).toBe("." + path.sep + "data" + path.sep + "file.txt");
+      const windowsUnmapped = "C:\\Windows\\System32\\cmd.exe";
+      expect(mapper.map(windowsUnmapped)).toBe(windowsUnmapped);
     });
 
-    test("should handle Windows paths with forward slashes", () => {
-      const result = mapper.map("C:/Production/App/src/index.js");
-      expect(result).toBe("." + path.sep + "app" + path.sep + "src" + path.sep + "index.js");
-    });
-
-    test("should handle Windows paths without mappings", () => {
-      const result = mapper.map("C:\\Windows\\System32\\cmd.exe");
-      // Should return as-is since it's already a local absolute path
-      expect(result).toBe("C:\\Windows\\System32\\cmd.exe");
-    });
-
-    test("should not duplicate Windows absolute paths", () => {
-      // This was the original bug - ensure it doesn't prepend ./ to absolute paths
-      const result = mapper.map("C:\\Users\\username\\project\\file.txt");
-      expect(result).toBe("C:\\Users\\username\\project\\file.txt");
-      expect(result).not.toContain("./C:");
+    test("maps to relative paths correctly", () => {
+      const input = "/opt/app/src/index.js";
+      const result = mapper.map(input);
+      // The result should be platform-specific
+      if (process.platform === "win32") {
+        expect(result).toBe(".\\local\\app\\src\\index.js");
+      } else {
+        expect(result).toBe("./local/app/src/index.js");
+      }
     });
   });
 
-  describe("Cross-platform edge cases", () => {
-    const mappings = [
-      { from: "/prod/app", to: "./local/app" },
-      { from: "\\\\network\\share", to: "./network" }, // UNC path
-    ];
-    
-    const mapper = new PathMapper(mappings);
-
-    test("should handle empty path", () => {
-      expect(mapper.map("")).toBe("./");
-    });
-
-    test("should handle paths with trailing slashes", () => {
-      const result1 = mapper.map("/prod/app/");
-      expect(result1).toBe("." + path.sep + "local" + path.sep + "app" + path.sep);
+  describe("Edge cases and special scenarios", () => {
+    test("handles paths with trailing slashes", () => {
+      const mappings = [
+        { from: "/data", to: "./localdata" }
+      ];
+      const mapper = new PathMapper(mappings);
       
-      const result2 = mapper.map("/prod/app");
-      expect(result2).toBe("." + path.sep + "local" + path.sep + "app");
+      expect(mapper.map("/data/")).toBe(
+        process.platform === "win32" ? ".\\localdata\\" : "./localdata/"
+      );
     });
 
-    test("should handle UNC paths", () => {
-      const result = mapper.map("\\\\network\\share\\file.txt");
-      expect(result).toBe("." + path.sep + "network" + path.sep + "file.txt");
+    test("handles exact matches", () => {
+      const mappings = [
+        { from: "/exact", to: "./mapped" }
+      ];
+      const mapper = new PathMapper(mappings);
+      
+      expect(mapper.map("/exact")).toBe(
+        process.platform === "win32" ? ".\\mapped" : "./mapped"
+      );
     });
 
-    test("should preserve relative paths that don't match mappings", () => {
-      expect(mapper.map("./relative/path.txt")).toBe("./relative/path.txt");
-      expect(mapper.map("../parent/path.txt")).toBe("../parent/path.txt");
+    test("handles UNC paths", () => {
+      const mappings = [
+        { from: "/network", to: "\\\\server\\share" }
+      ];
+      const mapper = new PathMapper(mappings);
+      
+      const result = mapper.map("/network/file.txt");
+      expect(result).toBe("\\\\server\\share\\file.txt");
     });
   });
 
-  describe("Mapping with similar prefixes", () => {
+  describe("Real-world scenario from user's config", () => {
     const mappings = [
-      { from: "/app", to: "./app1" },
-      { from: "/application", to: "./app2" },
-      { from: "/app/data", to: "./app-data" },
+      {
+        from: "/autoimg",
+        to: "C:/Users/JOHANNES.STRICKER/AutoImaging/b0d039v2/autoimg"
+      },
+      {
+        from: "/home/autoimg",
+        to: "C:/Users/JOHANNES.STRICKER/AutoImaging/b0d039v2/home/autoimg"
+      }
     ];
     
     const mapper = new PathMapper(mappings);
 
-    test("should match the most specific mapping first", () => {
-      // Since mappings are checked in order, the first match wins
-      expect(mapper.map("/app/file.txt")).toBe(
-        "." + path.sep + "app1" + path.sep + "file.txt"
+    test("correctly maps the user's specific case", () => {
+      // This is what happens on Windows when path.resolve("/autoimg", "/autoimg/paisy/skript/docgener")
+      // produces "C:\autoimg\paisy\skript\docgener"
+      const windowsResolved = "C:\\autoimg\\paisy\\skript\\docgener";
+      const result = mapper.map(windowsResolved);
+      
+      // Should map to the correct local path
+      expect(result).toBe(
+        "C:\\Users\\JOHANNES.STRICKER\\AutoImaging\\b0d039v2\\autoimg\\paisy\\skript\\docgener"
       );
-      expect(mapper.map("/application/file.txt")).toBe(
-        "." + path.sep + "app2" + path.sep + "file.txt"
+    });
+
+    test("maps the args correctly", () => {
+      const argPath = "C:\\autoimg\\paisy\\var\\paisy.conf";
+      const result = mapper.map(argPath);
+      
+      expect(result).toBe(
+        "C:\\Users\\JOHANNES.STRICKER\\AutoImaging\\b0d039v2\\autoimg\\paisy\\var\\paisy.conf"
       );
-      expect(mapper.map("/app/data/file.txt")).toBe(
-        "." + path.sep + "app1" + path.sep + "data" + path.sep + "file.txt"
-      ); // First match wins
     });
   });
 });

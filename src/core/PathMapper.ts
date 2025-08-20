@@ -1,6 +1,7 @@
 import fsSync from "fs";
 import path from "path";
 import { Config, PathMapping } from "./types";
+import { toUnixPath, fromUnixPath, isWindowsPath } from "./pathUtils";
 
 export class PathMapper {
   constructor(private mappings: PathMapping[]) {}
@@ -9,6 +10,18 @@ export class PathMapper {
     const config: Config = JSON.parse(
       fsSync.readFileSync("config.json", "utf-8")
     );
+    
+    // Validate that all path mappings use Unix-style paths
+    for (const mapping of config.pathMappings) {
+      if (isWindowsPath(mapping.from)) {
+        throw new Error(
+          `Path mappings must use Unix-style paths. Found Windows-style path in 'from': ${mapping.from}\n` +
+          `Please use forward slashes (/) and no drive letters. Example: /autoimg instead of C:\\autoimg`
+        );
+      }
+      // Note: 'to' paths can be Windows paths as they represent local filesystem paths
+    }
+    
     return new PathMapper(config.pathMappings);
   }
 
@@ -33,51 +46,53 @@ export class PathMapper {
     return inputPath.replace(/\\/g, '/');
   }
 
-  /**
-   * Check if a path is a Windows absolute path
-   */
-  private isWindowsAbsolute(inputPath: string): boolean {
-    // Check for drive letter (C:\) or UNC path (\\server\share)
-    return /^[a-zA-Z]:[\\\/]/.test(inputPath) || /^\\\\/.test(inputPath);
-  }
-
   map(inputPath: string): string {
-    // Normalize the input path for comparison
-    const normalizedInput = this.normalizePath(inputPath);
+    // Convert input to Unix style for consistent comparison
+    const unixInput = toUnixPath(inputPath);
     
+    // Try to find a matching mapping
     for (const mapping of this.mappings) {
-      // Normalize the mapping paths for comparison
-      const normalizedFrom = this.normalizePath(mapping.from);
-      const normalizedTo = this.normalizePath(mapping.to);
+      // Mapping 'from' should already be Unix style (validated in fromConfig)
+      const unixFrom = mapping.from;
       
-      // Check if the path starts with the mapping and is followed by a separator or end of string
-      if (normalizedInput === normalizedFrom || 
-          normalizedInput.startsWith(normalizedFrom + '/')) {
+      // Check if the path matches this mapping
+      if (unixInput === unixFrom || 
+          unixInput.startsWith(unixFrom + '/')) {
         // Calculate the relative part after the mapping
-        const relativePart = normalizedInput.slice(normalizedFrom.length);
+        const relativePart = unixInput.slice(unixFrom.length);
         
-        // Combine with the target path
-        const mappedPath = normalizedTo + relativePart;
+        // The 'to' path might be Windows or Unix style
+        // Normalize it to Unix for manipulation
+        const unixTo = toUnixPath(mapping.to);
         
-        // Convert back to platform-specific separators
-        const platformPath = mappedPath.split('/').join(path.sep);
+        // Combine with the relative part
+        const mappedUnixPath = unixTo + relativePart;
         
-        return platformPath;
+        // Convert to platform-specific format for file system operations
+        // If the original 'to' was a Windows path, keep it in Windows format
+        if (isWindowsPath(mapping.to)) {
+          // Use the original Windows path format with proper separators
+          const normalizedTo = this.normalizePath(mapping.to);
+          const mappedPath = normalizedTo + relativePart;
+          // Ensure we use backslashes for Windows paths
+          return mappedPath.replace(/\//g, '\\');
+        } else {
+          // For Unix-style 'to' paths, check if they should be relative
+          let mappedPath = mapping.to + relativePart;
+          
+          // If the 'to' path starts with ./ or ../, preserve that
+          if (mapping.to.startsWith('./') || mapping.to.startsWith('../')) {
+            // Already relative, just return with proper separators
+            return mappedPath;
+          }
+          
+          // Otherwise return as-is
+          return mappedPath;
+        }
       }
     }
 
-    // No mapping found
-    // For Unix absolute paths that weren't mapped, return as-is (they're production paths)
-    if (inputPath.startsWith('/')) {
-      return inputPath;
-    }
-    
-    // For Windows absolute paths that weren't mapped, return as-is
-    if (this.isWindowsAbsolute(inputPath) || path.isAbsolute(inputPath)) {
-      return inputPath;
-    }
-    
-    // For relative paths, ensure they start with ./ or ../
-    return this.makeRelative(inputPath);
+    // No mapping found - return the original input path
+    return inputPath;
   }
 }
