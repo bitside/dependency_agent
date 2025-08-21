@@ -264,3 +264,88 @@ export const writeOutputFile = async (options: {
 
   return content;
 };
+
+//////////////////////////
+// CREDENTIALS REPORT
+//////////////////////////
+
+export interface CredentialEntry {
+  filePath: string;
+  value: string;
+  description?: string;
+}
+
+export interface CredentialError {
+  filePath: string;
+  error: string;
+}
+
+export interface CredentialsScanResult {
+  credentials: CredentialEntry[];
+  errors: CredentialError[];
+  stats: {
+    filesScanned: number;
+    credentialsFound: number;
+    errors: number;
+  };
+}
+
+export const writeCredentialsReport = async (
+  result: CredentialsScanResult,
+  outDir: string
+): Promise<string> => {
+  const dateString = getCurrentDateTimeString();
+  const outFile = path.resolve(outDir, `credentials-${dateString}.md`);
+
+  const sections: string[] = [
+    "# Credentials Analysis Report",
+    "",
+    "## Summary",
+    `- **Files scanned**: ${result.stats.filesScanned}`,
+    `- **Credentials found**: ${result.stats.credentialsFound}`,
+    `- **Errors**: ${result.stats.errors}`,
+    ""
+  ];
+
+  if (result.credentials.length > 0) {
+    sections.push("## Credentials Found", "");
+    
+    // Group credentials by file
+    const credentialsByFile = new Map<string, CredentialEntry[]>();
+    for (const credential of result.credentials) {
+      const existing = credentialsByFile.get(credential.filePath) || [];
+      existing.push(credential);
+      credentialsByFile.set(credential.filePath, existing);
+    }
+
+    // Sort files alphabetically
+    const sortedFiles = Array.from(credentialsByFile.keys()).sort();
+    
+    for (const filePath of sortedFiles) {
+      const credentials = credentialsByFile.get(filePath)!;
+      sections.push(`### ${filePath}`, "");
+      
+      for (const credential of credentials) {
+        sections.push(`- **Value**: \`${credential.value}\``);
+        if (credential.description) {
+          sections.push(`  - **Description**: ${credential.description}`);
+        }
+        sections.push("");
+      }
+    }
+  }
+
+  if (result.errors.length > 0) {
+    sections.push("## Errors", "");
+    
+    for (const error of result.errors.sort((a, b) => a.filePath.localeCompare(b.filePath))) {
+      sections.push(`- **${error.filePath}**: ${error.error}`);
+    }
+    sections.push("");
+  }
+
+  const content = sections.join("\n");
+  await fs.writeFile(outFile, content);
+
+  return content;
+};

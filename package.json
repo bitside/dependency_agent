@@ -9,6 +9,7 @@
     "start": "node dist/cli.js",
     "analyze": "tsx src/cli.ts analyze",
     "copy": "tsx src/cli.ts copy",
+    "credentials": "tsx src/cli.ts credentials",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"

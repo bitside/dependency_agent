@@ -9,9 +9,10 @@ import { FileAnalysisAgent, FileAnalysisOutput } from "./agents";
 import { fileTypeFromBuffer } from "file-type";
 import { PathMapper, Config, resolveUnixPath } from "./core";
 import { isBinaryFile } from "isbinaryfile";
-import { writeOutputFile } from "./output/visualizeDependencies";
+import { writeOutputFile, writeCredentialsReport } from "./output/visualizeDependencies";
 import { type FileDependency } from "./output/visualizeDependencies";
 import { FileCopyService } from "./services/copyFiles";
+import { CredentialsScanService } from "./services/credentialsScan";
 
 function uniqueBy<T>(array: T[], key: keyof T): T[] {
   const seen = new Set();
@@ -313,6 +314,80 @@ program
       }
 
       console.log(chalk.green("✅ Copy operation completed successfully!"));
+    } catch (error) {
+      console.error(chalk.red("\n❌ Error:"), error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("credentials")
+  .description("Scan files or directories for potential credentials and sensitive information")
+  .requiredOption(
+    "-i, --input <path>",
+    "File or directory to scan for credentials"
+  )
+  .option("-o, --output <path>", "Output directory for reports", "./output")
+  .option("--dry-run", "Preview what would be scanned without writing output", false)
+  .option("-v, --verbose", "Show detailed output", false)
+  .action(async (options) => {
+    try {
+      console.log(chalk.bold.cyan("\n🔍 Repository Credentials Scanner\n"));
+
+      // Check AWS credentials
+      if (
+        !process.env.AWS_REGION ||
+        !process.env.AWS_ACCESS_KEY_ID ||
+        !process.env.AWS_SECRET_ACCESS_KEY
+      ) {
+        console.warn(
+          chalk.yellow("⚠️  AWS credentials not found in environment variables")
+        );
+        console.warn(
+          chalk.yellow(
+            "   Please set AWS_REGION, AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY"
+          )
+        );
+        console.warn(
+          chalk.yellow("   Or configure AWS CLI with: aws configure")
+        );
+      }
+
+      // Check if input path exists
+      if (!existsSync(options.input)) {
+        console.error(chalk.red(`Input path not found: ${options.input}`));
+        process.exit(1);
+      }
+
+      // Create scan service and execute
+      const scanService = new CredentialsScanService();
+      const result = await scanService.scanPath(options.input, {
+        dryRun: options.dryRun,
+        verbose: options.verbose,
+      });
+
+      // Print stats
+      scanService.printStats(result, { dryRun: options.dryRun });
+
+      // Write report if not dry run
+      if (!options.dryRun) {
+        const reportContent = await writeCredentialsReport(result, options.output);
+        console.log(chalk.green("\n✅ Credentials scan complete!"));
+        console.log(chalk.blue(`📄 Report written to: ${options.output}`));
+        console.log("");
+        console.log(chalk.blue(reportContent));
+      } else {
+        console.log(chalk.yellow("\n🔍 Dry run complete - no files written"));
+      }
+
+      if (result.stats.errors > 0) {
+        console.log(
+          chalk.yellow(
+            "⚠️  Some files could not be scanned. Check the errors above."
+          )
+        );
+        process.exit(1);
+      }
     } catch (error) {
       console.error(chalk.red("\n❌ Error:"), error);
       process.exit(1);
